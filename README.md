@@ -18,7 +18,7 @@ jupyter lab
 
 ### Enter your binance api key to binance_api_key_example.json
 
-Change
+Change the file name to binance_api_key.json and enter your binance api key to json file
 ```
 {"api_key": "enter_your_api_key", "api_secret": "enter_your_secret_api_key"}
 ```
