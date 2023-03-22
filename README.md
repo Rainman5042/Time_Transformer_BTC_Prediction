@@ -16,8 +16,9 @@ pip install ccxt
 jupyter lab
 ```
 
-### Enter your binance api key to json file
+### Enter your binance api key to binance_api_key_example.json
 
+Change
 ```
 {"api_key": "enter_your_api_key", "api_secret": "enter_your_secret_api_key"}
 ```
