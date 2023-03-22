@@ -5,6 +5,9 @@
 
 # Model weight & logs
 
+# binance api key
+binance_api_key.json
+
 # python cache
 .__pycache__
 script/.__pycache__

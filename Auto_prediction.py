@@ -1,3 +1,12 @@
+"""
+development python version:3.8.13
+author: Siao-Yu Jian
+function: Auto fetch this hour data from Binance and prediction the next hour close price
+version history:
+                2023.03.16      version v1.0.0      initial version
+                2023.03.22                          update prediction model to v2.0.3
+"""
+
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import math
@@ -20,16 +29,19 @@ import matplotlib.pyplot as plt
 import warnings
 import pickle
 import schedule
-
 warnings.filterwarnings('ignore')
 pd.set_option('display.max_columns', None)
 
-with open('multi_factor_v2.0.2.pickle', 'rb') as input_pickle:
+
+with open('./normalization/multi_factor_v2.0.3.pickle', 'rb') as input_pickle:
     multi_factor_dic = pickle.load(input_pickle)
 
 zscore_col = multi_factor_dic['zscore'][0]
 zscore_std = multi_factor_dic['zscore'][1]
 zscore_mean = multi_factor_dic['zscore'][2]
+vol_zscore_col = multi_factor_dic['vol_zscore'][0]
+vol_zscore_std = multi_factor_dic['vol_zscore'][1]
+vol_zscore_mean = multi_factor_dic['vol_zscore'][2]
 input_col = multi_factor_dic['input_col']
 
 batch_size = 32
@@ -43,18 +55,17 @@ test_percent = 10
 
 target_column='Close_MA_ptc_10'
 pearson_corr_cutoff = 0.2
+model_weight_path = './model_weight/transformer_btc_multi_factor_v2.0.3.hdf5'
+
 
 def calculate_z_score_input_format(df_cal):
     for col in zscore_col:
         df_cal[col] = (df_cal[col] - zscore_mean) / zscore_std
+    df_cal['Volume_zscore'] = (df_cal['Volume'] - vol_zscore_mean) / vol_zscore_std
     return df_cal[input_col], df_cal
 
 def restore_single_zscore_close_price_v3(test_pred, df_zscore_total, seq_len=128):
     single_df = df_zscore_total.reset_index(drop=True).copy()
-    # df_zscore_output['pred_Close']='-'
-    # # 128~len(df)
-    # for i in range(seq_len, len(df_zscore_output)):
-    #     # restore the model predicted_ptc
     pred_ptc = test_pred[0][0]*zscore_std + zscore_mean
     # choose the single_df[0:128] (index 0~127) 
     # take the final MA_10
@@ -108,11 +119,12 @@ def next_hour_calculator():
 
 if __name__ == '__main__':
     print('Loading Model...')
-    model = tf.keras.models.load_model('./model_weight/transformer_btc_multi_factor_v2.0.2.hdf5',
-                                   custom_objects={'Time2Vector': Time2Vector, 
-                                                   'SingleAttention': SingleAttention,
-                                                   'MultiAttention': MultiAttention,
-                                                   'TransformerEncoder': TransformerEncoder})
+    model = load_fine_tune_model(model_weight_path)
+    # model = tf.keras.models.load_model('./model_weight/transformer_btc_multi_factor_v2.0.2.hdf5',
+    #                                custom_objects={'Time2Vector': Time2Vector, 
+    #                                                'SingleAttention': SingleAttention,
+    #                                                'MultiAttention': MultiAttention,
+    #                                                'TransformerEncoder': TransformerEncoder})
     # print this hour prediction price
     df = binance_single_fetch_history_price(coin='BTC/USDT', timeframe='1h', seq_len=seq_len)
     timeframes = [10,20,40,60,80,100,120,140,160,180,200]

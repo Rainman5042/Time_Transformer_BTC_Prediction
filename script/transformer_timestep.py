@@ -1,5 +1,11 @@
-# 
-
+"""
+development python version:3.8.13
+author: Siao-Yu Jian
+function: Time step Transformer model building
+version history:
+                2023.03.22      version v1.0.0      initial version
+                
+"""
 
 import numpy as np
 import pandas as pd
@@ -14,56 +20,6 @@ plt.style.use('seaborn')
 import pickle
 import warnings
 warnings.filterwarnings('ignore')
-
-with open('./data/multi_factor_min_max_parameter.pickle', 'rb') as handle:
-    normalized_dict = pickle.load(handle)
-
-# load min max parameter
-multi_min_return = normalized_dict['multi_min_return']
-multi_max_return = normalized_dict['multi_max_return']
-
-vol_max_return = normalized_dict['vol_max_return']
-vol_min_return = normalized_dict['vol_min_return']
-
-quote_volume_min_return = normalized_dict['quote_volume_min_return']
-quote_volume_max_return = normalized_dict['quote_volume_max_return']
-
-taker_buy_base_asset_volume_max_return = normalized_dict['taker_buy_base_asset_volume_max_return']
-taker_buy_base_asset_volume_min_return = normalized_dict['taker_buy_base_asset_volume_min_return']
-
-taker_buy_quote_asset_volume_min_return = normalized_dict['taker_buy_quote_asset_volume_min_return']
-taker_buy_quote_asset_volume_max_return = normalized_dict['taker_buy_quote_asset_volume_max_return']
-
-trade_num_min_return = normalized_dict['trade_num_min_return']
-trade_num_max_return = normalized_dict['trade_num_max_return']
-
-    
-
-# calculated by original train data
-min_return = -0.06512109971782276
-max_return = 0.07264907716666236
-min_volume = -0.3859540528316058
-max_volume = 0.3858981239713559
-
-
-
-# min_return = 0.06512109971782276
-# max_return = 0.07264907716666236
-# min_volume = -0.3859540528316058
-# max_volume = 0.3858981239713559
-def restore_min_max_scalar(normalized_number):
-    original_number =  (normalized_number) * (max_return - min_return)  + min_return
-    return original_number
-
-def restore_close_price(input_df, pred_index, pred_number, moving_avg_step=10):
-    previous_day_idx = pred_index-1
-    # total_df: original df include train & test
-    # next_day_index: 
-    close_ptc_change =  restore_min_max_scalar(pred_number)
-    previois_avg     = input_df.loc[pred_index-moving_avg_step:previous_day_idx,'Close'].mean()
-    close_avg        = previois_avg * (close_ptc_change+1)
-    restored_close   = (close_avg*moving_avg_step) - (input_df.loc[previous_day_idx- moving_avg_step+2:previous_day_idx, 'Close'].sum())
-    return restored_close
 
 
 class Time2Vector(Layer):
@@ -142,7 +98,7 @@ class SingleAttention(Layer):
         attn_out = tf.matmul(attn_weights, v)
         return attn_out    
 
-#############################################################################
+
 
 class MultiAttention(Layer):
     def __init__(self, d_k, d_v, n_heads):
@@ -168,7 +124,7 @@ class MultiAttention(Layer):
         multi_linear = self.linear(concat_attn)
         return multi_linear   
 
-#############################################################################
+
 
 class TransformerEncoder(Layer):
     def __init__(self, d_k, d_v, n_heads, ff_dim, dropout=0.1, **kwargs):
@@ -221,144 +177,3 @@ def load_fine_tune_model(weight_path='./model_weight/transformer_btc_multi_facto
                                                        'TransformerEncoder': TransformerEncoder})
     return model
 
-def df_normalization(input_df, moving_avg_step=10):
-    raw_df = input_df.copy()
-    if 'Adj Close' in raw_df.columns:
-        del raw_df['Adj Close']
-    raw_df[['Open_avg', 'High_avg', 'Low_avg', 'Close_avg', 'Volume_avg']] = raw_df[['Open', 'High', 'Low', 'Close', 'Volume']].rolling(moving_avg_step).mean()
-    raw_df.dropna(how='any', axis=0, inplace=True)
-    raw_df['Open_ptc_change']   = raw_df['Open_avg'].pct_change() # Create arithmetic returns column
-    raw_df['High_ptc_change']   = raw_df['High_avg'].pct_change() # Create arithmetic returns column
-    raw_df['Low_ptc_change']    = raw_df['Low_avg'].pct_change() # Create arithmetic returns column
-    raw_df['Close_ptc_change']  = raw_df['Close_avg'].pct_change() # Create arithmetic returns column
-    raw_df['Volume_ptc_change'] = raw_df['Volume_avg'].pct_change()
-    raw_df.dropna(how='any', axis=0, inplace=True)
-    raw_df['Open_ptc_change_normalized']  = (raw_df['Open_ptc_change'] - min_return) / (max_return - min_return)
-    raw_df['High_ptc_change_normalized']  = (raw_df['High_ptc_change'] - min_return) / (max_return - min_return)
-    raw_df['Low_ptc_change_normalized']   = (raw_df['Low_ptc_change'] - min_return) / (max_return - min_return)
-    raw_df['Close_ptc_change_normalized'] = (raw_df['Close_ptc_change'] - min_return) / (max_return - min_return)
-    raw_df['Volume_ptc_change_normalized'] = (raw_df['Volume_ptc_change'] - min_volume) / (max_volume - min_volume)
-    normalized_df = raw_df.reset_index(drop=True)
-    return normalized_df
-
-def transformer_prediction_model(normalized_df, predict_last_days=5):
-    seq_len=128
-    normalized_df = normalized_df.reset_index(drop=True)
-    start_time = len(normalized_df) - 128 - predict_last_days
-    # select input data range & column
-    next_day_input = normalized_df.loc[start_time:,['Open_ptc_change_normalized',
-                                                    'High_ptc_change_normalized',
-                                                    'Low_ptc_change_normalized',
-                                                    'Close_ptc_change_normalized',
-                                                    'Volume_ptc_change_normalized']].values
-    # convert to model input format
-    input_data = []
-    for i in range(seq_len, len(next_day_input)):
-        input_data.append(next_day_input[i-seq_len:i]) # Chunks of training data with a length of 128 df-rows
-    input_data = np.array(input_data)
-    # predict the close price
-    pred_price_normalized = model.predict(input_data)
-    pred_price_normalized = pred_price_normalized.reshape(-1)
-    # restore to original pice
-    pred_price_list = []
-    for i, value in enumerate(pred_price_normalized):
-        # 5day end data in -5 index
-        normalized_df_index = predict_last_days-i
-        pred_price = restore_close_price(normalized_df, normalized_df.index[-int(normalized_df_index)], value,10)
-        pred_price_list.append(pred_price)
-    # output predicted price and data frame
-    output_df = normalized_df.loc[start_time:]
-    output_df = output_df.reset_index(drop=True)
-    output_df['pred_close'] = ''
-    output_df['pred_close_normalized'] = ''
-    output_df.loc[len(output_df.index)-len(pred_price_list[0:-1]):,'pred_close'] = pred_price_list[0:-1]
-    output_df.loc[len(output_df.index)-len(pred_price_normalized[0:-1]):,'pred_close_normalized'] = pred_price_normalized[0:-1]
-    return pred_price_list[-1] ,output_df.loc[len(output_df.index) - predict_last_days:,]
-
-
-
-## ----------------------------BTC muliti factor df preprocess-------------------------#
-
-def df_mulit_factor_nomalization(df, moving_avg_step=10):
-    BTC_df = df.copy()
-    if 'time' in BTC_df.columns:
-        del BTC_df['time']
-    if 'symbol' in BTC_df.columns:
-        del BTC_df['symbol']
-    if '下週期幣種漲跌幅' in BTC_df.columns:
-        del BTC_df['下週期幣種漲跌幅']
-    BTC_df.dropna(how='any', axis=0, inplace=True)
-    BTC_df['close_original']  = BTC_df['close']
-    # moving average
-    BTC_df[['open', 'high', 'low', 'close','volume','taker_buy_base_asset_volume','taker_buy_quote_asset_volume']] = BTC_df[['open', 'high', 'low', 'close','volume','taker_buy_base_asset_volume','taker_buy_quote_asset_volume']].rolling(moving_avg_step).mean()
-    # percent change
-    BTC_df['open']   = BTC_df['open'].pct_change() # Create arithmetic returns column
-    BTC_df['high']   = BTC_df['high'].pct_change() # Create arithmetic returns column
-    BTC_df['low']    = BTC_df['low'].pct_change() # Create arithmetic returns column
-    # save the close ptc_change for restore the true price
-    BTC_df['close']  = BTC_df['close'].pct_change()# Create arithmetic returns column
-    BTC_df['volume'] = BTC_df['volume'].pct_change()
-    BTC_df['taker_buy_base_asset_volume']  = BTC_df['taker_buy_base_asset_volume'].pct_change()
-    BTC_df['taker_buy_quote_asset_volume'] = BTC_df['taker_buy_quote_asset_volume'].pct_change()
-    BTC_df.dropna(how='any', axis=0, inplace=True)
-    # min_max scalar
-    BTC_df['open']         = (BTC_df['open'] - multi_min_return) / (multi_max_return - multi_min_return)
-    BTC_df['high']         = (BTC_df['high'] - multi_min_return) / (multi_max_return - multi_min_return)
-    BTC_df['low']          = (BTC_df['low'] - multi_min_return) / (multi_max_return - multi_min_return)
-    BTC_df['volume']       = (BTC_df['volume'] - vol_min_return) / (vol_max_return - vol_min_return)
-    BTC_df['quote_volume'] = (BTC_df['quote_volume'] - quote_volume_min_return) / (quote_volume_max_return - quote_volume_min_return)
-    BTC_df['close'] = (BTC_df['close'] - multi_min_return) / (multi_max_return - multi_min_return)
-    BTC_df['taker_buy_base_asset_volume'] = (BTC_df['taker_buy_base_asset_volume'] - taker_buy_base_asset_volume_min_return) / (taker_buy_base_asset_volume_max_return -taker_buy_base_asset_volume_min_return)
-    BTC_df['taker_buy_quote_asset_volume'] = (BTC_df['taker_buy_base_asset_volume'] - taker_buy_quote_asset_volume_min_return) / (taker_buy_quote_asset_volume_max_return - taker_buy_quote_asset_volume_min_return)
-    BTC_df['trade_num'] = (BTC_df['trade_num'] - trade_num_min_return) / (trade_num_max_return - trade_num_min_return)
-    return BTC_df
-
-
-def mulit_factor_restore_min_max_scalar(normalized_number):
-    original_number =  (normalized_number) * (multi_max_return - multi_min_return)  + multi_min_return
-    return original_number
-
-def mulit_factor_restore_close_price(input_df, pred_index, pred_number, moving_avg_step=10):
-    previous_day_idx = pred_index-1
-    # total_df: original df include train & test
-    # next_day_index: 
-    close_ptc_change = mulit_factor_restore_min_max_scalar(pred_number)
-    previois_avg     = input_df.loc[pred_index-moving_avg_step:previous_day_idx,'close_original'].mean()
-    close_avg        = previois_avg * (close_ptc_change+1)
-    restored_close   = (close_avg*moving_avg_step) - (input_df.loc[previous_day_idx- moving_avg_step+2:previous_day_idx, 'close_original'].sum())
-    return restored_close
-
-def multi_facter_transformer_prediction_model(model, normalized_df, predict_last_days=5):
-    seq_len=128
-    if (predict_last_days - 128 ) > len(normalized_df):
-        print('enough input data, please reset predict_days')
-    normalized_df = normalized_df.reset_index(drop=True)
-    start_time = len(normalized_df) - 128 - predict_last_days
-    # original close will only be used in restore the true predicted price.
-    # normalized close will be the input feature, original feature will be used for restore the true price.
-    input_col  = [col for col in list(normalized_df.columns) if col != 'close_original']
-    # select input data range & column
-    next_day_input = normalized_df.loc[start_time:, input_col].values
-    # convert to model input format
-    input_data = []
-    for i in range(seq_len, len(next_day_input)):
-        input_data.append(next_day_input[i-seq_len:i]) # Chunks of training data with a length of 128 df-rows
-    input_data = np.array(input_data)
-    # predict the close price
-    pred_price_normalized = model.predict(input_data)
-    pred_price_normalized = pred_price_normalized.reshape(-1)
-    # restore to original pice
-    pred_price_list = []
-    for i, value in enumerate(pred_price_normalized):
-        # 5day end data in -5 index
-        normalized_df_index = predict_last_days-i
-        pred_price = mulit_factor_restore_close_price(normalized_df, normalized_df.index[-int(normalized_df_index)], value,10)
-        pred_price_list.append(pred_price)
-    # output predicted price and data frame
-    output_df = normalized_df.loc[start_time:]
-    output_df = output_df.reset_index(drop=True)
-    output_df['pred_close'] = ''
-    output_df['pred_close_normalized'] = ''
-    output_df.loc[len(output_df.index)-len(pred_price_list[0:-1]):,'pred_close'] = pred_price_list[0:-1]
-    output_df.loc[len(output_df.index)-len(pred_price_normalized[0:-1]):,'pred_close_normalized'] = pred_price_normalized[0:-1]
-    return output_df
