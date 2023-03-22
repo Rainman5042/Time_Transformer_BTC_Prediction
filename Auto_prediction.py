@@ -120,11 +120,6 @@ def next_hour_calculator():
 if __name__ == '__main__':
     print('Loading Model...')
     model = load_fine_tune_model(model_weight_path)
-    # model = tf.keras.models.load_model('./model_weight/transformer_btc_multi_factor_v2.0.2.hdf5',
-    #                                custom_objects={'Time2Vector': Time2Vector, 
-    #                                                'SingleAttention': SingleAttention,
-    #                                                'MultiAttention': MultiAttention,
-    #                                                'TransformerEncoder': TransformerEncoder})
     # print this hour prediction price
     df = binance_single_fetch_history_price(coin='BTC/USDT', timeframe='1h', seq_len=seq_len)
     timeframes = [10,20,40,60,80,100,120,140,160,180,200]
