@@ -7,6 +7,7 @@ output: all history data with Dataframe type, header = [Timestamp, 'Open', 'High
 version history:
                 2023.03.10      version v1.0.0      initial version
                 2023.03.16      version v1.0.1      drop the lastest history data (floating k bar)
+                2023.03.22                          let binance api key can load from json file
 """
 
 import numpy as np
@@ -14,14 +15,16 @@ import pandas as pd
 import ccxt
 from datetime import datetime,timezone,timedelta
 import talib
+import pickle
+import json
 
-# binanace api
-api_key = 'TyH0G0hI23di2CP2O2bSwkoQIbuJQNimMAx1m5AUBZHKIPojFm5dy6XRhyiYh1sR'
-api_secret = 'P2ZCaaEyqAhdJvWMfF1WGAsp6DFGO62evpqdcN3Ju0bBJaTO56ONhKbMCobP9HPR'
+with open('binance_api_key.json', 'r') as f:
+    binance_api_key = json.load(f)
 
+# binanace api setting
 binance_exchange = ccxt.binance({
-    'apiKey': api_key,
-    'secret': api_secret,
+    'apiKey': binance_api_key['api_key'],
+    'secret': binance_api_key['api_secret'],
     'options': {
         'defaultType': 'future',},
 })
@@ -75,9 +78,9 @@ def binance_fetch_history_price(coin='BTC/USDT', timeframe='8h', start_date='201
     return df
 
 """
-function: fetch all USD future(contrat) history price from binance
-input: coin type, timeframe, start_date
-output: all history data with Dataframe type, header = [Timestamp, 'Open', 'High', 'Low', 'Close', Volune]
+function: fetch lastest hour USD future(contrat) history price from binance
+input: coin type, timeframe, seq_len=128
+output: lastest hour history data with Dataframe type, header = [Timestamp, 'Open', 'High', 'Low', 'Close', Volune]
 """
 def binance_single_fetch_history_price(coin='BTC/USDT', timeframe='1h', seq_len=128):
     # 200 for indicator, 1 for drop lastest floating price, 1 for restore close price
