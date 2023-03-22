@@ -18,7 +18,9 @@ jupyter lab
 
 ### Enter your binance api key to binance_api_key_example.json
 
-Change
+1. Change the file name to binance_api_key.json 
+
+2. Enter your binance api key to json file
 ```
 {"api_key": "enter_your_api_key", "api_secret": "enter_your_secret_api_key"}
 ```
@@ -28,3 +30,10 @@ Change
 ```
 python Auto_prediction.py
 ```
+
+### 3000 hours Testing Performance
+
+![image](https://github.com/Rainman5042/Time_Transformer_BTC_Prediction/blob/main/testing_performance.png)
+
+### 400 hours Testing Performance
+![image](https://github.com/Rainman5042/Time_Transformer_BTC_Prediction/blob/main/400_testing_performance.png)
