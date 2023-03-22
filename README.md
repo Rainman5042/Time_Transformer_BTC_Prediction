@@ -30,3 +30,11 @@ jupyter lab
 ```
 python Auto_prediction.py
 ```
+
+### Model Performance
+
+3000 hours Testing Performance
+![image](https://github.com/Rainman5042/Time_Transformer_BTC_Prediction/blob/main/testing_performance.png)
+
+400 hours Testing Performance
+![image](https://github.com/Rainman5042/Time_Transformer_BTC_Prediction/blob/main/400_testing_performance.png)
