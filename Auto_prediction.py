@@ -138,6 +138,7 @@ if __name__ == '__main__':
         next_pred_close = prediction_log(pred_close)
         # fetch data not be updated yet
         while pred_close == next_pred_close:
+            time.sleep(3)
             next_pred_close = prediction_log(pred_close)
         pred_close = next_pred_close
         #time.sleep(2)
