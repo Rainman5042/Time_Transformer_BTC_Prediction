@@ -103,69 +103,9 @@ def calculate_technical_indicators(input_df, timeframes=[5,10,20,40,60,80,100,12
 
 
 """
-function: create the mean and std dictionary for calculate Z-score
-input: Dataframe
-output: dic['column'] = [mean, std]
-"""
-def z_score_dic(input_df):
-    dic = {}
-    for col in input_df.columns[1:]: # ignore timestamp
-        dic[col] = [input_df[col].mean(), input_df[col].std()]
-    return dic
-
-"""
-function: calculate Z-score
-input: Dataframe
-output: normalize to Z-score dataframe
-"""
-def calculate_z_score(input_df, dic):
-    df = input_df.copy()
-    for col in df.columns[1:]: # ignore timestamp
-        mean, std = dic[col][0], dic[col][1]
-        df[col] = (df[col] - mean) / std
-    return df
-
-"""
-function: recover z_score to original value
-input: normalized Z-score dataframe, z_score_dic
-output: original Dataframe
-"""
-def recover_z_score(input_df, dic):
-    df = input_df.copy()
-    for col in df.columns[1:]: # ignore timestamp
-        mean, std = dic[col][0], dic[col][1]
-        df[col] = (df[col] + mean) * std
-    return df
-
-"""
-function: create the max and min dictionary for MaxMinScalar
-input: Dataframe
-output: dic['column'] = [max, min]
-"""
-def min_max_dic(input_df):
-    dic = {}
-    for col in input_df.columns[1:]: # open high low close
-        dic[col] = [input_df[col].max(), input_df[col].min()]
-    return dic
-
-"""
-function: calculate MinMaxScalar
-input: Dataframe
-output: dic['column'] = [max, min]
-"""
-def calculate_min_max(input_df, dic):
-    df = input_df.copy()
-    for col in df.columns[1:]: # open high low close
-        max_, min_ = dic[col][0], dic[col][1]
-        df[col] = (df[col] - min_) / (max_-min_)
-    return df
-
-
-
-"""
-function: recover z_score to original value
-input: normalized Z-score dataframe, z_score_dic
-output: original Dataframe
+function: for train_test_split
+input: original Dataframe
+output: train set, valdation set, test set
 """
 def preprocess_train_test_split(input_df, valid_percent=20, test_percent=10):
     df = input_df.copy()

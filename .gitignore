@@ -4,6 +4,7 @@
 #     https://www.atlassian.com/git/tutorials/saving-changes/gitignore
 
 # Model weight & logs
+prediction_log/prediction_log.xlsx
 
 # binance api key
 binance_api_key.json
