@@ -1,6 +1,6 @@
 # Time_Transformer_BTC_Prediction
 
-## Be carefull, this model cannot be use to real work stock prediction
+## Be carefull, this model cannot be use in real world stock prediction
 
 After experiments, it is found that the closing price cannot be used as the predicted target value. When there is a previous closing price in the input data, due to the loss function, the previous closing price is automatically captured as the next predicted value, this is the easist way to find the lowest loss, So this model has no predictive ability, and it is necessary to go back and readjust the data and model.
 
